@@ -1,6 +1,8 @@
 import { z } from "zod";
 
+import { getServerEnv } from "@/lib/env";
 import { apiError, getIdempotencyKey, parseJson, requireSameOrigin } from "@/lib/http";
+import { verifyEmailOtp } from "@/lib/supabase/auth";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 const schema = z.object({ email: z.email(), token: z.string().regex(/^\d{6}$/), phone: z.string().trim().max(30).optional() });
@@ -10,12 +12,18 @@ export async function POST(request: Request) {
   if (!getIdempotencyKey(request)) return apiError("BAD_REQUEST", "Idempotency-Key is required", 400);
   try {
     const body = await parseJson(request, schema);
-    const client = await createSupabaseServerClient();
-    if (!client) return Response.json({ verified: body.token === "123456", demo: true }, { status: body.token === "123456" ? 200 : 400 });
-    const { error } = await client.auth.verifyOtp({ email: body.email, token: body.token, type: "email" });
-    if (error) return apiError("UNAUTHENTICATED", "The code is invalid or expired", 401);
-    const { error: profileError } = await client.rpc("ensure_customer_profile", { p_phone: body.phone });
-    if (profileError) return apiError("INTERNAL_ERROR", "Customer profile could not be prepared", 500);
+    const authResult = await verifyEmailOtp(body.email, body.token);
+    if (!authResult.enabled) {
+      return Response.json({ verified: body.token === "123456", demo: true }, { status: body.token === "123456" ? 200 : 400 });
+    }
+    if (authResult.error || !authResult.user) return apiError("UNAUTHENTICATED", "The code is invalid or expired", 401);
+
+    if (getServerEnv().PROVIDER_MODE === "real") {
+      const client = await createSupabaseServerClient();
+      if (!client) return apiError("PROVIDER_UNAVAILABLE", "Customer profile service is not configured", 503);
+      const { error: profileError } = await client.rpc("ensure_customer_profile", { p_phone: body.phone });
+      if (profileError) return apiError("INTERNAL_ERROR", "Customer profile could not be prepared", 500);
+    }
     return Response.json({ verified: true });
   } catch (error) {
     if (error instanceof z.ZodError) return apiError("BAD_REQUEST", "Invalid verification request", 400);

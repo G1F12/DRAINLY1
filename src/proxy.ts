@@ -9,7 +9,8 @@ export async function proxy(request: NextRequest) {
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-request-id", requestId);
   const providerMode = (process.env.PROVIDER_MODE ?? "fake").trim().toLowerCase();
-  if (providerMode !== "real") {
+  const authProviderMode = (process.env.AUTH_PROVIDER_MODE ?? "fake").trim().toLowerCase();
+  if (providerMode !== "real" && authProviderMode !== "real") {
     const next = NextResponse.next({ request: { headers: requestHeaders } });
     next.headers.set("x-content-type-options", "nosniff");
     next.headers.set("referrer-policy", "strict-origin-when-cross-origin");

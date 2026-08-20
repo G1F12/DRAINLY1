@@ -8,6 +8,7 @@ const optionalSecret = z.string().optional().or(z.literal(""));
 const serverEnvSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PROVIDER_MODE: z.enum(["fake", "real"]).default("fake"),
+  AUTH_PROVIDER_MODE: z.enum(["fake", "real"]).default("fake"),
   NOTIFICATION_PROVIDER_MODE: z.enum(["fake", "real"]).default("fake"),
   APP_BASE_URL: z.string().url().default("http://127.0.0.1:3000"),
   NEXT_PUBLIC_SUPABASE_URL: optionalUrl,
@@ -53,6 +54,16 @@ export function getServerEnv(): ServerEnv {
     }
     if (!cached.STRIPE_SECRET_KEY?.startsWith("sk_test_")) {
       throw new Error("Drainly implementation accepts Stripe test-mode secret keys only");
+    }
+  }
+  if (cached.AUTH_PROVIDER_MODE === "real") {
+    const required = [
+      "NEXT_PUBLIC_SUPABASE_URL",
+      "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+    ] as const;
+    const missing = required.filter((key) => !cached?.[key]);
+    if (missing.length > 0) {
+      throw new Error(`Missing required real auth configuration: ${missing.join(", ")}`);
     }
   }
   if (cached.NOTIFICATION_PROVIDER_MODE === "real") {

@@ -5,6 +5,7 @@ import { cookies } from "next/headers";
 
 import type { Database } from "@/lib/database.types";
 import { getServerEnv, isSupabaseConfigured } from "@/lib/env";
+import { getAuthenticatedUser } from "@/lib/supabase/auth";
 
 export async function createSupabaseServerClient() {
   const env = getServerEnv();
@@ -31,9 +32,5 @@ export async function createSupabaseServerClient() {
 }
 
 export async function getCurrentUser() {
-  const client = await createSupabaseServerClient();
-  if (!client) return null;
-  const { data, error } = await client.auth.getUser();
-  if (error) return null;
-  return data.user;
+  return getAuthenticatedUser();
 }

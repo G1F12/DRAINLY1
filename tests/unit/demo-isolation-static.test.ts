@@ -19,8 +19,9 @@ describe("demo provider isolation source invariants", () => {
 
   it("skips Supabase session refresh in demo middleware", () => {
     expect(proxy).toContain('const providerMode = (process.env.PROVIDER_MODE ?? "fake")');
-    expect(proxy).toContain('if (providerMode !== "real")');
-    expect(proxy.indexOf('if (providerMode !== "real")')).toBeLessThan(proxy.indexOf("createServerClient(url, key"));
+    expect(proxy).toContain('const authProviderMode = (process.env.AUTH_PROVIDER_MODE ?? "fake")');
+    expect(proxy).toContain('if (providerMode !== "real" && authProviderMode !== "real")');
+    expect(proxy.indexOf('if (providerMode !== "real" && authProviderMode !== "real")')).toBeLessThan(proxy.indexOf("createServerClient(url, key"));
   });
 
   it("keeps notification provider selection independent from core provider mode", () => {
