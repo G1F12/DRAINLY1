@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { apiError, getIdempotencyKey, parseJson, requireSameOrigin } from "@/lib/http";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { scheduleNotificationDrain } from "@/modules/notifications/dispatch";
 
 const schema = z.object({ action: z.enum(["MARK_EN_ROUTE", "MARK_ARRIVED", "COMPLETE", "FAIL_ACCESS", "FAIL_SERVICE"]), reason: z.string().trim().max(1000).optional() });
 
@@ -19,6 +20,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (!client) return apiError("PROVIDER_UNAVAILABLE", "Contractor service is not configured", 503);
     const { data, error } = await client.rpc("transition_job", { p_order_id: id, p_action: body.action, p_reason: body.reason ?? "", p_idempotency_key: key });
     if (error) return apiError("CONFLICT", error.message, 409);
+    scheduleNotificationDrain();
     return Response.json(data);
   } catch (error) {
     if (error instanceof z.ZodError) return apiError("BAD_REQUEST", "Invalid job action", 400, error.flatten());

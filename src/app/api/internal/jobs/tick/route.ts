@@ -106,6 +106,8 @@ export async function POST(request: Request) {
         await sql`select internal.record_refund_result(${context.refundId}::uuid, ${refund.refundId}, ${refund.status === "succeeded" ? "SUCCEEDED" : "PENDING"}::domain.refund_status, ${refund.transferReversalCents}::integer, ${null}::text)`;
       } else if (item.taskType === "CHECK_ASSIGNMENT_DEADLINE") {
         await sql`select internal.process_assignment_deadline(${item.aggregateId}::uuid)`;
+      } else if (item.taskType === "SEND_SERVICE_REMINDER") {
+        await sql`select internal.enqueue_service_reminder(${item.aggregateId}::uuid)`;
       } else {
         throw new Error("UNKNOWN_SCHEDULED_TASK_TYPE");
       }
@@ -129,13 +131,18 @@ export async function POST(request: Request) {
       const context = rows[0]?.context;
       if (!context) throw new Error("OUTBOX_CONTEXT_NOT_FOUND");
       const recipients: Array<{ type: "CUSTOMER" | "CONTRACTOR" | "ADMIN"; email: string }> = [];
-      if (["payment.dispute_alert", "payment.operation_failed"].includes(item.topic)) {
+      if (["payment.dispute_alert", "payment.operation_failed", "payment.reconciliation_discrepancy"].includes(item.topic)) {
         const ops = getServerEnv().OPS_ALERT_EMAIL;
         if (ops) recipients.push({ type: "ADMIN", email: ops });
         else log("error", item.topic, { orderId: context.orderId, outboxId: item.id });
       } else {
         recipients.push({ type: "CUSTOMER", email: context.customerEmail });
-        if (item.topic === "assignment.created" && context.contractorEmail) recipients.push({ type: "CONTRACTOR", email: context.contractorEmail });
+        if (["assignment.deadline_missed", "order.failed_service"].includes(item.topic)) {
+          const ops = getServerEnv().OPS_ALERT_EMAIL;
+          if (ops) recipients.push({ type: "ADMIN", email: ops });
+          else log("warn", "notification.ops_recipient_missing", { topic: item.topic, orderId: context.orderId });
+        }
+        if (["assignment.created", "order.cancelled", "order.service_reminder"].includes(item.topic) && context.contractorEmail) recipients.push({ type: "CONTRACTOR", email: context.contractorEmail });
       }
       for (const recipient of recipients) {
         const destinationHash = hashRateLimitKey(`notification:${recipient.email.toLowerCase()}`);
@@ -145,13 +152,18 @@ export async function POST(request: Request) {
         const delivery = deliveries[0]?.delivery;
         if (!delivery?.shouldSend) continue;
         try {
-          const copy = notificationCopy(item.topic, context.publicRef);
-          await withOutboundProviderTimeout((signal) => getNotificationGateway().sendEmail({
+          const copy = notificationCopy(item.topic, context.publicRef, recipient.type);
+          const sendResult = await withOutboundProviderTimeout((signal) => getNotificationGateway().sendEmail({
             to: recipient.email,
             subject: copy.subject,
             body: copy.body,
             idempotencyKey: delivery.idempotencyKey,
           }, signal), getServerEnv().OUTBOUND_PROVIDER_TIMEOUT_MS);
+          await sql`select internal.record_notification_provider_message(
+            ${delivery.notificationId}::uuid,
+            ${sendResult.provider},
+            ${sendResult.providerMessageId}
+          )`;
           await sql`select internal.complete_notification_delivery(${delivery.notificationId}::uuid, ${true}, ${null})`;
         } catch (error) {
           const message = error instanceof Error ? error.message : "Notification provider failed";

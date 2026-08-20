@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 const worker = readFileSync("src/app/api/internal/jobs/tick/route.ts", "utf8");
 const gateway = readFileSync("src/modules/notifications/gateway.ts", "utf8");
+const notificationOutbox = readFileSync("src/modules/notifications/outbox.ts", "utf8");
 const fakeOrder = readFileSync("src/app/api/orders/[id]/route.ts", "utf8");
 const migration = readFileSync("supabase/migrations/202608110004_final_audit_hardening.sql", "utf8");
 
@@ -15,11 +16,11 @@ describe("worker hardening source invariants", () => {
   });
 
   it("applies the centralized timeout to Resend and Twilio adapters", () => {
-    expect(worker).toContain("withOutboundProviderTimeout");
+    expect(notificationOutbox).toContain("withOutboundProviderTimeout");
     expect(gateway).toContain("signal,");
     expect(gateway).toContain("{ timeout: timeoutMs, autoRetry: false }");
     expect(gateway).toContain('"idempotency-key": message.idempotencyKey');
-    expect(gateway).toContain('"timeout"');
+    expect(gateway).toContain("timeout: timeoutMs");
   });
 
   it("does not fabricate a confirmed appointment in the fake order endpoint", () => {

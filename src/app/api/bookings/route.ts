@@ -4,6 +4,7 @@ import { apiError, getIdempotencyKey, parseJson, requireSameOrigin } from "@/lib
 import { createSupabaseServerClient, getCurrentUser } from "@/lib/supabase/server";
 import { getSystemDb } from "@/lib/system-db";
 import { getPaymentGateway } from "@/modules/payments/gateway";
+import { scheduleNotificationDrain } from "@/modules/notifications/dispatch";
 
 const schema = z.object({
   quoteId: z.uuid(),
@@ -44,6 +45,7 @@ export async function POST(request: Request) {
       p_idempotency_key: key,
     });
     if (error) return apiError("CONFLICT", error.message, 409);
+    scheduleNotificationDrain();
     return Response.json(data);
   } catch (error) {
     if (error instanceof z.ZodError) return apiError("BAD_REQUEST", "Invalid booking", 400, error.flatten());

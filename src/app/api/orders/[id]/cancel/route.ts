@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { apiError, getIdempotencyKey, parseJson, requireSameOrigin } from "@/lib/http";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { scheduleNotificationDrain } from "@/modules/notifications/dispatch";
 
 const schema = z.object({ reason: z.string().trim().min(5).max(1000) });
 
@@ -16,6 +17,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (!client) return Response.json({ orderId: id, status: "CANCELLED", demo: true });
     const { data, error } = await client.rpc("cancel_order", { p_order_id: id, p_reason: body.reason, p_idempotency_key: key });
     if (error) return apiError("CONFLICT", error.message, 409);
+    scheduleNotificationDrain();
     return Response.json(data);
   } catch (error) {
     if (error instanceof z.ZodError) return apiError("BAD_REQUEST", "Invalid cancellation", 400, error.flatten());

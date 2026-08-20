@@ -3,6 +3,7 @@ import "server-only";
 import { z } from "zod";
 
 const optionalUrl = z.string().url().optional().or(z.literal(""));
+const optionalSecret = z.string().optional().or(z.literal(""));
 
 const serverEnvSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
@@ -21,6 +22,7 @@ const serverEnvSchema = z.object({
   TWILIO_AUTH_TOKEN: z.string().optional(),
   TWILIO_FROM_NUMBER: z.string().optional(),
   RESEND_API_KEY: z.string().optional(),
+  RESEND_WEBHOOK_SECRET: optionalSecret,
   EMAIL_FROM: z.string().default("Drainly <bookings@example.invalid>"),
   OPS_ALERT_EMAIL: z.email().optional(),
   SENTRY_DSN: z.string().optional(),
@@ -54,8 +56,20 @@ export function getServerEnv(): ServerEnv {
     }
   }
   if (cached.NOTIFICATION_PROVIDER_MODE === "real") {
-    if (!cached.RESEND_API_KEY) throw new Error("Missing required real notification configuration: RESEND_API_KEY");
-    if (cached.EMAIL_FROM.includes("example.invalid")) throw new Error("EMAIL_FROM must use a verified sender for real notifications");
+    const required = [
+      "DRAINLY_SYSTEM_DATABASE_URL",
+      "CRON_SECRET",
+      "RATE_LIMIT_HMAC_SECRET",
+      "RESEND_API_KEY",
+      "RESEND_WEBHOOK_SECRET",
+    ] as const;
+    const missing = required.filter((key) => !cached?.[key]);
+    if (missing.length > 0) {
+      throw new Error(`Missing required real notification configuration: ${missing.join(", ")}`);
+    }
+    if (cached.EMAIL_FROM.includes("example.invalid")) {
+      throw new Error("EMAIL_FROM must use a verified sender for real notifications");
+    }
   }
   return cached;
 }

@@ -6,7 +6,11 @@ import { getServerEnv } from "@/lib/env";
 import { log } from "@/lib/logger";
 
 export interface NotificationMessage { to: string; subject?: string; body: string; idempotencyKey: string }
-export interface NotificationGateway { sendEmail(message: NotificationMessage, signal?: AbortSignal): Promise<void>; sendSms(message: NotificationMessage, signal?: AbortSignal): Promise<void> }
+export interface NotificationSendResult { provider: "RESEND" | "FAKE" | "TWILIO"; providerMessageId: string }
+export interface NotificationGateway {
+  sendEmail(message: NotificationMessage, signal?: AbortSignal): Promise<NotificationSendResult>;
+  sendSms(message: NotificationMessage, signal?: AbortSignal): Promise<NotificationSendResult>;
+}
 
 class FakeNotificationGateway implements NotificationGateway {
   constructor(private readonly behavior: "success" | "failure" | "timeout") {}
@@ -19,8 +23,16 @@ class FakeNotificationGateway implements NotificationGateway {
       });
     }
   }
-  async sendEmail(message: NotificationMessage, signal?: AbortSignal) { await this.simulate(signal); log("info", "notification.fake_email", { destinationHash: message.idempotencyKey, template: message.subject }); }
-  async sendSms(message: NotificationMessage, signal?: AbortSignal) { await this.simulate(signal); log("info", "notification.fake_sms", { destinationHash: message.idempotencyKey }); }
+  async sendEmail(message: NotificationMessage, signal?: AbortSignal): Promise<NotificationSendResult> {
+    await this.simulate(signal);
+    log("info", "notification.fake_email", { destinationHash: message.idempotencyKey, template: message.subject });
+    return { provider: "FAKE", providerMessageId: `fake-email:${message.idempotencyKey}` };
+  }
+  async sendSms(message: NotificationMessage, signal?: AbortSignal): Promise<NotificationSendResult> {
+    await this.simulate(signal);
+    log("info", "notification.fake_sms", { destinationHash: message.idempotencyKey });
+    return { provider: "FAKE", providerMessageId: `fake-sms:${message.idempotencyKey}` };
+  }
 }
 
 class RealNotificationGateway implements NotificationGateway {
@@ -38,7 +50,7 @@ class RealNotificationGateway implements NotificationGateway {
       : undefined;
   }
 
-  async sendEmail(message: NotificationMessage, signal?: AbortSignal) {
+  async sendEmail(message: NotificationMessage, signal?: AbortSignal): Promise<NotificationSendResult> {
     if (!this.resendKey) throw new Error("EMAIL_PROVIDER_NOT_CONFIGURED");
     const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
@@ -51,11 +63,15 @@ class RealNotificationGateway implements NotificationGateway {
       body: JSON.stringify({ from: this.fromEmail, to: [message.to], subject: message.subject ?? "Drainly update", text: message.body }),
     });
     if (!response.ok) throw new Error(`EMAIL_PROVIDER_FAILED_${response.status}`);
+    const data = await response.json() as { id?: string };
+    if (!data.id) throw new Error("EMAIL_PROVIDER_INVALID_RESPONSE");
+    return { provider: "RESEND", providerMessageId: data.id };
   }
 
-  async sendSms(message: NotificationMessage) {
+  async sendSms(message: NotificationMessage): Promise<NotificationSendResult> {
     if (!this.twilioClient || !this.fromPhone) throw new Error("SMS_PROVIDER_NOT_CONFIGURED");
-    await this.twilioClient.messages.create({ from: this.fromPhone, to: message.to, body: message.body });
+    const result = await this.twilioClient.messages.create({ from: this.fromPhone, to: message.to, body: message.body });
+    return { provider: "TWILIO", providerMessageId: result.sid };
   }
 }
 

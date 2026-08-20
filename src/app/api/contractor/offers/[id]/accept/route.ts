@@ -1,5 +1,6 @@
 import { apiError, getIdempotencyKey, requireSameOrigin } from "@/lib/http";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { scheduleNotificationDrain } from "@/modules/notifications/dispatch";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   if (!requireSameOrigin(request)) return apiError("FORBIDDEN", "Origin is not allowed", 403);
@@ -13,5 +14,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!client) return apiError("PROVIDER_UNAVAILABLE", "Contractor service is not configured", 503);
   const { data, error } = await client.rpc("accept_order_offer", { p_offer_id: id, p_idempotency_key: key });
   if (error) return apiError(error.message.includes("ALREADY_ASSIGNED") ? "CONFLICT" : "FORBIDDEN", error.message, error.message.includes("ALREADY_ASSIGNED") ? 409 : 403);
+  scheduleNotificationDrain();
   return Response.json(data);
 }

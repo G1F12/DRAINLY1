@@ -14,7 +14,7 @@ describe("demo provider isolation source invariants", () => {
     expect(supabaseServer).toContain('if (env.PROVIDER_MODE !== "real") return null;');
     expect(systemDb).toContain('if (env.PROVIDER_MODE !== "real") return null;');
     expect(supabaseServer.indexOf('if (env.PROVIDER_MODE !== "real") return null;')).toBeLessThan(supabaseServer.indexOf("createServerClient<"));
-    expect(systemDb.indexOf('if (env.PROVIDER_MODE !== "real") return null;')).toBeLessThan(systemDb.indexOf("postgres(connectionString"));
+    expect(systemDb.indexOf('if (env.PROVIDER_MODE !== "real") return null;')).toBeLessThan(systemDb.indexOf("return getSharedSystemDb(connectionString);"));
   });
 
   it("skips Supabase session refresh in demo middleware", () => {

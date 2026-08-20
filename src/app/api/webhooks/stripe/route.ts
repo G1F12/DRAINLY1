@@ -5,6 +5,7 @@ import Stripe from "stripe";
 import { getServerEnv } from "@/lib/env";
 import { apiError } from "@/lib/http";
 import { getSystemDb } from "@/lib/system-db";
+import { scheduleNotificationDrain } from "@/modules/notifications/dispatch";
 import { getPaymentGateway } from "@/modules/payments/gateway";
 
 export async function POST(request: Request) {
@@ -20,6 +21,7 @@ export async function POST(request: Request) {
   }
   const sql = getSystemDb();
   if (!sql) return apiError("PROVIDER_UNAVAILABLE", "Webhook persistence is unavailable", 503);
+  scheduleNotificationDrain();
   const sha = createHash("sha256").update(payload).digest("hex");
   if (event.type.startsWith("charge.dispute.")) {
     const dispute = event.data.object as Stripe.Dispute;
