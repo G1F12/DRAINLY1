@@ -8,10 +8,20 @@ export async function proxy(request: NextRequest) {
     : crypto.randomUUID();
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-request-id", requestId);
+  const providerMode = (process.env.PROVIDER_MODE ?? "fake").trim().toLowerCase();
+  if (providerMode !== "real") {
+    const next = NextResponse.next({ request: { headers: requestHeaders } });
+    next.headers.set("x-content-type-options", "nosniff");
+    next.headers.set("referrer-policy", "strict-origin-when-cross-origin");
+    next.headers.set("x-request-id", requestId);
+    return next;
+  }
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
   if (!url || !key) {
     const next = NextResponse.next({ request: { headers: requestHeaders } });
+    next.headers.set("x-content-type-options", "nosniff");
+    next.headers.set("referrer-policy", "strict-origin-when-cross-origin");
     next.headers.set("x-request-id", requestId);
     return next;
   }

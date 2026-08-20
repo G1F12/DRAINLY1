@@ -7,7 +7,9 @@ import { getServerEnv } from "@/lib/env";
 let sql: Sql | null = null;
 
 export function getSystemDb(): Sql | null {
-  const connectionString = getServerEnv().DRAINLY_SYSTEM_DATABASE_URL;
+  const env = getServerEnv();
+  if (env.PROVIDER_MODE !== "real") return null;
+  const connectionString = env.DRAINLY_SYSTEM_DATABASE_URL;
   if (!connectionString) return null;
   sql ??= postgres(connectionString, {
     max: 5,

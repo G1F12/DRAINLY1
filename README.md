@@ -6,9 +6,10 @@ The locked implementation plan is [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTAT
 
 ## Safety boundary
 
-- `PROVIDER_MODE=fake` is the default. Fake payment and notification adapters are deterministic and make no network calls.
+- `PROVIDER_MODE=fake` is the default core mode. In this mode the application does not create Supabase server clients, privileged PostgreSQL connections, Google geocoding requests, or Stripe provider calls; demo flows are deterministic and non-persistent.
+- `NOTIFICATION_PROVIDER_MODE=fake` is independently defaulted to fake. Real Resend delivery can be enabled separately later without enabling payments, marketplace writes, or geocoding.
 - The real Stripe adapter rejects non-test secret keys.
-- This repository contains no deployment automation and must not be used for production until every gate in [docs/PRODUCTION_GATES.md](docs/PRODUCTION_GATES.md) is signed off.
+- This repository must not be used for an uncontrolled live marketplace until every gate in [docs/PRODUCTION_GATES.md](docs/PRODUCTION_GATES.md) is signed off.
 - Worker and webhook SQL uses `DRAINLY_SYSTEM_DATABASE_URL`, a dedicated `drainly_system` login. A Supabase service-role JWT is not a substitute.
 
 ## Local setup
@@ -24,7 +25,7 @@ pnpm db:types
 pnpm dev
 ```
 
-The checked-in `.env.test` selects fake providers. The Supabase seed contains fictional `.example.test` users and test-mode provider identifiers only.
+The default `.env.example` keeps both core providers and notifications in fake mode. The Supabase seed contains fictional `.example.test` users and test-mode provider identifiers only.
 
 ## Verification
 
@@ -51,7 +52,12 @@ The CI database job invokes `pnpm test:integration` with its local Supabase Post
 
 ## Provider modes
 
-The app ships interface-compatible real and fake/test adapters for Stripe, Google Maps, Twilio, Resend, and Supabase Storage. PostHog and Sentry are server/client-configuration ready, with PII-safe logging at application boundaries. Real mode requires explicit environment validation and remains Stripe test-mode only.
+The app has two independent switches:
+
+- `PROVIDER_MODE=fake|real` controls core marketplace providers and privileged persistence: Supabase server access, PostgreSQL system access, Stripe, Google geocoding, contractor writes, booking persistence, proof storage, and Stripe webhook processing.
+- `NOTIFICATION_PROVIDER_MODE=fake|real` controls outbound notification adapters. In real notification mode, Resend requires `RESEND_API_KEY` and a verified `EMAIL_FROM`; Twilio remains optional until SMS is actually enabled.
+
+This separation allows Drainly to test real email delivery while the marketplace, payments, and contractor operations remain safely in demo mode. PostHog and Sentry are server/client-configuration ready, with PII-safe logging at application boundaries. Core real mode requires explicit environment validation and remains Stripe test-mode only.
 
 ## Data access
 

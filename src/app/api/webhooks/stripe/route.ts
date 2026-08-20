@@ -2,11 +2,13 @@ import { createHash } from "node:crypto";
 
 import Stripe from "stripe";
 
+import { getServerEnv } from "@/lib/env";
 import { apiError } from "@/lib/http";
 import { getSystemDb } from "@/lib/system-db";
 import { getPaymentGateway } from "@/modules/payments/gateway";
 
 export async function POST(request: Request) {
+  if (getServerEnv().PROVIDER_MODE !== "real") return Response.json({ received: true, ignored: true, demo: true });
   const signature = request.headers.get("stripe-signature");
   if (!signature) return apiError("BAD_REQUEST", "Stripe signature is required", 400);
   const payload = await request.text();
@@ -17,10 +19,7 @@ export async function POST(request: Request) {
     return apiError("FORBIDDEN", "Invalid Stripe webhook signature", 400);
   }
   const sql = getSystemDb();
-  if (!sql) {
-    if (process.env.PROVIDER_MODE !== "real") return Response.json({ received: true, demo: true });
-    return apiError("PROVIDER_UNAVAILABLE", "Webhook persistence is unavailable", 503);
-  }
+  if (!sql) return apiError("PROVIDER_UNAVAILABLE", "Webhook persistence is unavailable", 503);
   const sha = createHash("sha256").update(payload).digest("hex");
   if (event.type.startsWith("charge.dispute.")) {
     const dispute = event.data.object as Stripe.Dispute;

@@ -14,7 +14,7 @@ export async function POST(request: Request) {
     const key = hashRateLimitKey(`otp:${clientAddress(request)}:${body.email.toLowerCase()}`);
     if (!(await consumeRateLimit(key, 5, 3600))) return apiError("RATE_LIMITED", "Too many sign-in attempts", 429);
     const client = await createSupabaseServerClient();
-    if (!client) return Response.json({ sent: true, demoCode: process.env.NODE_ENV === "development" ? "123456" : undefined });
+    if (!client) return Response.json({ sent: true, demoCode: "123456", demo: true });
     const { error } = await client.auth.signInWithOtp({ email: body.email, options: { shouldCreateUser: true } });
     if (error) return apiError("PROVIDER_UNAVAILABLE", "Unable to send sign-in code", 503);
     return Response.json({ sent: true });

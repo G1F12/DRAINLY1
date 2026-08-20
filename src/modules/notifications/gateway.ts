@@ -63,7 +63,7 @@ let gateway: NotificationGateway | undefined;
 export function getNotificationGateway(): NotificationGateway {
   const env = getServerEnv();
   if (!gateway) {
-    gateway = env.PROVIDER_MODE === "real"
+    gateway = env.NOTIFICATION_PROVIDER_MODE === "real"
       ? new RealNotificationGateway(
         env.EMAIL_FROM,
         env.RESEND_API_KEY,

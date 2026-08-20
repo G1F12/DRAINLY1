@@ -7,6 +7,7 @@ const optionalUrl = z.string().url().optional().or(z.literal(""));
 const serverEnvSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PROVIDER_MODE: z.enum(["fake", "real"]).default("fake"),
+  NOTIFICATION_PROVIDER_MODE: z.enum(["fake", "real"]).default("fake"),
   APP_BASE_URL: z.string().url().default("http://127.0.0.1:3000"),
   NEXT_PUBLIC_SUPABASE_URL: optionalUrl,
   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: z.string().optional(),
@@ -51,6 +52,10 @@ export function getServerEnv(): ServerEnv {
     if (!cached.STRIPE_SECRET_KEY?.startsWith("sk_test_")) {
       throw new Error("Drainly implementation accepts Stripe test-mode secret keys only");
     }
+  }
+  if (cached.NOTIFICATION_PROVIDER_MODE === "real") {
+    if (!cached.RESEND_API_KEY) throw new Error("Missing required real notification configuration: RESEND_API_KEY");
+    if (cached.EMAIL_FROM.includes("example.invalid")) throw new Error("EMAIL_FROM must use a verified sender for real notifications");
   }
   return cached;
 }
