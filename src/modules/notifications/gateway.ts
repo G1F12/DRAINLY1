@@ -25,10 +25,21 @@ class FakeNotificationGateway implements NotificationGateway {
 
 class RealNotificationGateway implements NotificationGateway {
   private readonly twilioClient;
-  constructor(private readonly fromEmail: string, private readonly fromPhone: string, private readonly resendKey: string, sid: string, token: string, timeoutMs: number) {
-    this.twilioClient = twilio(sid, token, { timeout: timeoutMs, autoRetry: false });
+  constructor(
+    private readonly fromEmail: string,
+    private readonly resendKey: string | undefined,
+    private readonly fromPhone: string | undefined,
+    sid: string | undefined,
+    token: string | undefined,
+    timeoutMs: number,
+  ) {
+    this.twilioClient = sid && token && fromPhone
+      ? twilio(sid, token, { timeout: timeoutMs, autoRetry: false })
+      : undefined;
   }
+
   async sendEmail(message: NotificationMessage, signal?: AbortSignal) {
+    if (!this.resendKey) throw new Error("EMAIL_PROVIDER_NOT_CONFIGURED");
     const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
       signal,
@@ -41,7 +52,9 @@ class RealNotificationGateway implements NotificationGateway {
     });
     if (!response.ok) throw new Error(`EMAIL_PROVIDER_FAILED_${response.status}`);
   }
+
   async sendSms(message: NotificationMessage) {
+    if (!this.twilioClient || !this.fromPhone) throw new Error("SMS_PROVIDER_NOT_CONFIGURED");
     await this.twilioClient.messages.create({ from: this.fromPhone, to: message.to, body: message.body });
   }
 }
@@ -50,8 +63,15 @@ let gateway: NotificationGateway | undefined;
 export function getNotificationGateway(): NotificationGateway {
   const env = getServerEnv();
   if (!gateway) {
-    gateway = env.PROVIDER_MODE === "real" && env.RESEND_API_KEY && env.TWILIO_ACCOUNT_SID && env.TWILIO_AUTH_TOKEN && env.TWILIO_FROM_NUMBER
-      ? new RealNotificationGateway(env.EMAIL_FROM, env.TWILIO_FROM_NUMBER, env.RESEND_API_KEY, env.TWILIO_ACCOUNT_SID, env.TWILIO_AUTH_TOKEN, env.OUTBOUND_PROVIDER_TIMEOUT_MS)
+    gateway = env.PROVIDER_MODE === "real"
+      ? new RealNotificationGateway(
+        env.EMAIL_FROM,
+        env.RESEND_API_KEY,
+        env.TWILIO_FROM_NUMBER,
+        env.TWILIO_ACCOUNT_SID,
+        env.TWILIO_AUTH_TOKEN,
+        env.OUTBOUND_PROVIDER_TIMEOUT_MS,
+      )
       : new FakeNotificationGateway(env.FAKE_NOTIFICATION_BEHAVIOR);
   }
   return gateway;
