@@ -24,13 +24,40 @@ export async function parseJson<T>(request: Request, schema: ZodType<T>): Promis
   return schema.parse(await request.json());
 }
 
+function addAllowedOrigin(origins: Set<string>, value: string | null | undefined) {
+  if (!value) return;
+  try {
+    origins.add(new URL(value).origin);
+  } catch {
+    // Ignore malformed optional origin sources.
+  }
+}
+
+function allowedRequestOrigins(request: Request): Set<string> {
+  const origins = new Set<string>();
+
+  // Canonical application URL.
+  addAllowedOrigin(origins, getServerEnv().APP_BASE_URL);
+
+  // Also trust the actual Vercel/custom-domain ingress host for this request.
+  // This prevents legitimate custom-domain requests from being rejected when
+  // APP_BASE_URL still points at another configured alias.
+  const forwardedHost = request.headers.get("x-forwarded-host") ?? request.headers.get("host");
+  const forwardedProto = request.headers.get("x-forwarded-proto") ?? (process.env.NODE_ENV === "production" ? "https" : "http");
+  if (forwardedHost && (forwardedProto === "http" || forwardedProto === "https")) {
+    addAllowedOrigin(origins, `${forwardedProto}://${forwardedHost}`);
+  }
+
+  // Next/Vercel normally preserves the external request origin here.
+  addAllowedOrigin(origins, request.url);
+  return origins;
+}
+
 export function requireSameOrigin(request: Request): boolean {
   const origin = request.headers.get("origin");
   if (!origin) return process.env.NODE_ENV === "test";
   try {
-    const allowed = new URL(getServerEnv().APP_BASE_URL);
-    const actual = new URL(origin);
-    return actual.protocol === allowed.protocol && actual.host === allowed.host;
+    return allowedRequestOrigins(request).has(new URL(origin).origin);
   } catch {
     return false;
   }

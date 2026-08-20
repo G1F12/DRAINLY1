@@ -37,15 +37,25 @@ export async function POST(request: Request) {
   try {
     const body = await parseJson(request, schema);
     const address = await getGeocoder().normalize(body);
-    const [year, month, day] = body.requestedServiceDate.split("-").map(Number);
-    const serviceWindow = new TZDate(year!, month! - 1, day!, 8, 0, 0, "America/New_York");
+    const providerMode = (process.env.PROVIDER_MODE ?? "fake").trim().toLowerCase();
+    if (providerMode === "fake") {
+      return Response.json({
+        ...createFakeQuote({ normalizedAddress: address, tankTier: body.tankTier, timingKind: body.timingKind }),
+        quoteId: deterministicUuid(idempotencyKey),
+        address,
+      });
+    }
+    if (providerMode !== "real") {
+      return apiError("INTERNAL_ERROR", "Service provider mode is misconfigured", 500);
+    }
+
     const sql = getSystemDb();
     if (!sql) {
-      if (process.env.PROVIDER_MODE === "real") {
-        return apiError("PROVIDER_UNAVAILABLE", "Trusted quote database path is not configured", 503);
-      }
-      return Response.json({ ...createFakeQuote({ normalizedAddress: address, tankTier: body.tankTier, timingKind: body.timingKind }), quoteId: deterministicUuid(idempotencyKey), address });
+      return apiError("PROVIDER_UNAVAILABLE", "Trusted quote database path is not configured", 503);
     }
+
+    const [year, month, day] = body.requestedServiceDate.split("-").map(Number);
+    const serviceWindow = new TZDate(year!, month! - 1, day!, 8, 0, 0, "America/New_York");
     const rows = await sql<{ quote: Record<string, unknown> }[]>`
       select api.create_quote(
         ${address.regionKey ?? "UNSUPPORTED"}, ${body.tankTier}::domain.tank_tier,
@@ -67,7 +77,10 @@ export async function POST(request: Request) {
     return Response.json({ ...(rows[0]?.quote ?? {}), address });
   } catch (error) {
     if (error instanceof z.ZodError) return apiError("BAD_REQUEST", "Invalid quote request", 400, error.flatten());
-    const message = error instanceof Error ? error.message : "Unable to create quote";
+    console.error("[api/quotes] quote creation failed", error);
+    const message = process.env.NODE_ENV === "production"
+      ? "Unable to create quote"
+      : error instanceof Error ? error.message : "Unable to create quote";
     return apiError("PROVIDER_UNAVAILABLE", message, 503);
   }
 }
