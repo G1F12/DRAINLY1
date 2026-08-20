@@ -12,6 +12,7 @@ type QuoteResult = {
   customerTotalCents?: number;
   expiresAt?: string;
   viableCandidateCount?: number;
+  demo?: boolean;
   address?: { normalizedAddress: string; countyName: string };
 };
 
@@ -51,7 +52,19 @@ export function QuoteWizard() {
       <button className="button button-primary field-full" type="submit" disabled={loading}>{loading ? <><LoaderCircle size={18} className="animate-spin" /> Checking coverage and supply…</> : <>See my price <ArrowRight size={18} /></>}</button>
       <div className="fine-print field-full">Submitting does not guarantee an appointment. Drainly verifies coverage, current contractor eligibility, capacity, and marketplace economics on the server.</div>
     </form>}
-    {result?.status === "PRICED" && <div className="quote-result" aria-live="polite"><div className="eyebrow"><CheckCircle2 size={16} /> Firm pilot quote</div><div><div className="price">{formatUsd(result.customerTotalCents ?? 0)}</div><div className="list-sub">Customer total • card saved now, captured after completed service</div></div><div><strong>{result.address?.countyName}</strong><div className="list-sub">{result.address?.normalizedAddress}</div></div><div className="fine-print">Based on {result.viableCandidateCount ?? 1} currently viable contractor candidate{(result.viableCandidateCount ?? 1) === 1 ? "" : "s"}. Eligibility and capacity are checked again at booking and acceptance.</div><Link className="button button-primary" href={`/book?quote=${result.quoteId}`}>Continue securely <ArrowRight size={18} /></Link><button className="button button-ghost" type="button" onClick={() => setResult(undefined)}>Change details</button></div>}
+    {result?.status === "PRICED" && <div className="quote-result" aria-live="polite">
+      <div className="eyebrow"><CheckCircle2 size={16} /> {result.demo ? "Demo quote" : "Firm pilot quote"}</div>
+      <div>
+        <div className="price">{formatUsd(result.customerTotalCents ?? 0)}</div>
+        <div className="list-sub">{result.demo ? "Simulated total • no real card or contractor is involved" : "Customer total • card saved now, captured after completed service"}</div>
+      </div>
+      <div><strong>{result.address?.countyName}</strong><div className="list-sub">{result.address?.normalizedAddress}</div></div>
+      <div className="fine-print">{result.demo
+        ? "Demo mode uses simulated pricing and contractor availability. This is not a live quote, real contractor match, or service commitment."
+        : <>Based on {result.viableCandidateCount ?? 1} currently viable contractor candidate{(result.viableCandidateCount ?? 1) === 1 ? "" : "s"}. Eligibility and capacity are checked again at booking and acceptance.</>}</div>
+      <Link className="button button-primary" href={`/book?quote=${result.quoteId}`}>{result.demo ? "Continue demo flow" : "Continue securely"} <ArrowRight size={18} /></Link>
+      <button className="button button-ghost" type="button" onClick={() => setResult(undefined)}>Change details</button>
+    </div>}
     {result && result.status !== "PRICED" && <div className="quote-result" aria-live="polite"><strong>{result.status === "UNSUPPORTED" ? "We don’t serve this address yet" : result.status === "UNAVAILABLE" ? "No current contractor capacity for that date" : "This request needs a manual review"}</strong><p style={{ margin: 0, color: "var(--muted)" }}>{result.status === "REVIEW_REQUIRED" ? "We won’t invent a firm price when tank details or marketplace economics are uncertain. Leave your details and our pilot team can review it." : "Try another supported date or contact the pilot team for help."}</p><button className="button button-secondary" type="button" onClick={() => setResult(undefined)}>Try different details</button></div>}
   </div>;
 }

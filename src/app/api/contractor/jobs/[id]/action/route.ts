@@ -12,8 +12,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   try {
     const body = await parseJson(request, schema);
     const { id } = await params;
+    const providerMode = (process.env.PROVIDER_MODE ?? "fake").trim().toLowerCase();
+    if (providerMode === "fake") return Response.json({ orderId: id, status: body.action === "MARK_EN_ROUTE" ? "EN_ROUTE" : body.action === "MARK_ARRIVED" ? "ARRIVED" : body.action === "COMPLETE" ? "SERVICE_COMPLETED" : body.action === "FAIL_ACCESS" ? "FAILED_ACCESS" : "FAILED_SERVICE", demo: true });
+    if (providerMode !== "real") return apiError("INTERNAL_ERROR", "Service provider mode is misconfigured", 500);
     const client = await createSupabaseServerClient();
-    if (!client) return Response.json({ orderId: id, status: body.action === "MARK_EN_ROUTE" ? "EN_ROUTE" : body.action === "MARK_ARRIVED" ? "ARRIVED" : body.action === "COMPLETE" ? "SERVICE_COMPLETED" : body.action === "FAIL_ACCESS" ? "FAILED_ACCESS" : "FAILED_SERVICE", demo: true });
+    if (!client) return apiError("PROVIDER_UNAVAILABLE", "Contractor service is not configured", 503);
     const { data, error } = await client.rpc("transition_job", { p_order_id: id, p_action: body.action, p_reason: body.reason ?? "", p_idempotency_key: key });
     if (error) return apiError("CONFLICT", error.message, 409);
     return Response.json(data);

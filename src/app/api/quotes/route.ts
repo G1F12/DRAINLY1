@@ -43,6 +43,7 @@ export async function POST(request: Request) {
         ...createFakeQuote({ normalizedAddress: address, tankTier: body.tankTier, timingKind: body.timingKind }),
         quoteId: deterministicUuid(idempotencyKey),
         address,
+        demo: true,
       });
     }
     if (providerMode !== "real") {
