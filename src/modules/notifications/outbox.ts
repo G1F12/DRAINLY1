@@ -134,8 +134,13 @@ async function processDueNotificationWork(sql: Sql, workerId: string) {
 
   for (const item of work) {
     try {
-      if (item.taskType !== "SEND_SERVICE_REMINDER") throw new Error("UNKNOWN_NOTIFICATION_TASK_TYPE");
-      await sql`select internal.enqueue_service_reminder(${item.aggregateId}::uuid)`;
+      if (item.taskType === "SEND_SERVICE_REMINDER") {
+        await sql`select internal.enqueue_service_reminder(${item.aggregateId}::uuid)`;
+      } else if (item.taskType === "SEND_GROWTH_SERVICE_CHECKIN") {
+        await sql`select internal.enqueue_growth_service_checkin(${item.aggregateId}::uuid)`;
+      } else {
+        throw new Error("UNKNOWN_NOTIFICATION_TASK_TYPE");
+      }
       await sql`select internal.complete_work(${item.id}::uuid, ${workerId}, ${true}, ${null})`;
       results.push({ id: item.id, succeeded: true });
     } catch (error) {
@@ -149,7 +154,8 @@ async function processDueNotificationWork(sql: Sql, workerId: string) {
 
 export async function runNotificationPipeline(sql: Sql) {
   const workerId = `notifications-${crypto.randomUUID()}`;
+  const seedRows = await sql<{ seeded: number }[]>`select internal.seed_growth_service_checkins() as seeded`;
   const work = await processDueNotificationWork(sql, workerId);
   const outbox = await drainNotificationOutbox(sql, workerId);
-  return { ...work, ...outbox };
+  return { growthCheckinsSeeded: seedRows[0]?.seeded ?? 0, ...work, ...outbox };
 }

@@ -123,3 +123,8 @@ Database pilot controls remain disabled by default. The application rejects live
 Authenticated contractor reads are independent from the core marketplace provider switch. With real Supabase auth enabled, `/contractor` reads only the authenticated company's real contractor context, offers, and assignments. A user without a contractor profile is redirected to onboarding; a pending contractor sees a real review state with no simulated offers or jobs.
 
 Operational contractor views are explicitly scoped by authenticated contractor-company membership and remain `security_invoker` views. The underlying offer, assignment, and order RLS predicates are also tenant-scoped as defense in depth. Real-auth users never receive fake successful contractor mutations while the core pilot is closed. Accept/decline/job/proof controls are hidden until both application and database controlled-pilot execution gates are open.
+## Stage 6 growth engineering closure
+
+Stage 6 is implemented as a single growth-engineering package: privacy-safe quote/CTA measurement, local Johnston/Harnett SEO pages, consented customer/contractor lead capture, referral attribution without device fingerprinting, optional annual customer check-ins through the existing notification pipeline, an admin aggregate growth scorecard, and an audited experiment registry.
+
+This package also syncs the Stage 5.1 production-only security-invoker grants back into repository migrations. Growth features do not activate the core marketplace, controlled pilot, contractor approval, database booking/payment execution, or live Stripe money movement.

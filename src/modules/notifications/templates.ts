@@ -40,6 +40,12 @@ export function notificationCopy(
         body: `Reminder: your Drainly service for order ${publicRef} is scheduled soon. Sign in to review access instructions and status.`,
       };
   }
+  if (topic === "growth.service_checkin") {
+    return {
+      subject: `Drainly annual service check-in: ${publicRef}`,
+      body: `It has been about a year since the completed Drainly service associated with order ${publicRef}. If you want to check current local availability, sign in or request a new quote. This check-in is not a statement that pumping is currently required.`,
+    };
+  }
   if (topic === "order.en_route") {
     return { subject: `Your Drainly contractor is on the way: ${publicRef}`, body: `Your contractor marked Drainly order ${publicRef} as en route. Sign in for the latest status.` };
   }

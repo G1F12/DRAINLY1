@@ -1,6 +1,6 @@
 import "server-only";
 
-import { getPaymentSystemDb, getSystemDb } from "@/lib/system-db";
+import { getGrowthSystemDb, getPaymentSystemDb, getSystemDb } from "@/lib/system-db";
 
 const memoryBuckets = new Map<string, { count: number; resetAt: number }>();
 
@@ -26,6 +26,15 @@ export async function consumeRateLimit(bucketKey: string, limit: number, windowS
 
 export async function consumePaymentRateLimit(bucketKey: string, limit: number, windowSeconds: number): Promise<boolean> {
   const sql = getPaymentSystemDb();
+  if (sql) {
+    const rows = await sql<{ allowed: boolean }[]>`select internal.consume_rate_limit(${bucketKey}, ${limit}, ${windowSeconds}) as allowed`;
+    return rows[0]?.allowed ?? false;
+  }
+  return consumeMemoryRateLimit(bucketKey, limit, windowSeconds);
+}
+
+export async function consumeGrowthRateLimit(bucketKey: string, limit: number, windowSeconds: number): Promise<boolean> {
+  const sql = getGrowthSystemDb();
   if (sql) {
     const rows = await sql<{ allowed: boolean }[]>`select internal.consume_rate_limit(${bucketKey}, ${limit}, ${windowSeconds}) as allowed`;
     return rows[0]?.allowed ?? false;

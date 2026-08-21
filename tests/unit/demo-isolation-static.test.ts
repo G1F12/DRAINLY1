@@ -46,6 +46,18 @@ describe("demo provider isolation source invariants", () => {
 
   it("does not render customer write actions in demo mode", () => {
     expect(customerPage).toContain("DRN-DEMO-1042");
-    expect(customerPage).toContain('demoMode ? <span className="status status-info">Demo only</span> : <CustomerOrderActions');
+    expect(customerPage).toContain("if (demoMode) {");
+
+    const demoStart = customerPage.indexOf("if (demoMode) {");
+    const realStart = customerPage.indexOf("const user = await getAuthenticatedUser();");
+    expect(demoStart).toBeGreaterThan(-1);
+    expect(realStart).toBeGreaterThan(demoStart);
+
+    const demoBranch = customerPage.slice(demoStart, realStart);
+    const realBranch = customerPage.slice(realStart);
+
+    expect(demoBranch).toContain('<span className="status status-info">Demo only</span>');
+    expect(demoBranch).not.toContain("<CustomerOrderActions");
+    expect(realBranch).toContain("<CustomerOrderActions");
   });
 });

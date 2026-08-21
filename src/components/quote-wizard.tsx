@@ -4,6 +4,8 @@ import { ArrowRight, CheckCircle2, LoaderCircle, MapPin } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
+import { GrowthLeadForm } from "@/components/growth-lead-form";
+import { captureGrowthEvent } from "@/lib/analytics-client";
 import { formatUsd } from "@/modules/pricing/money";
 
 type QuoteResult = {
@@ -20,6 +22,12 @@ function tomorrowDate() {
   const date = new Date(); date.setDate(date.getDate() + 1); return date.toISOString().slice(0, 10);
 }
 
+function countyCode(countyName?: string): "JOHNSTON_NC" | "HARNETT_NC" | "UNKNOWN" | "OTHER" {
+  if (countyName === "Johnston County") return "JOHNSTON_NC";
+  if (countyName === "Harnett County") return "HARNETT_NC";
+  return countyName ? "OTHER" : "UNKNOWN";
+}
+
 export function QuoteWizard() {
   const minDate = useMemo(() => tomorrowDate(), []);
   const [loading, setLoading] = useState(false);
@@ -28,14 +36,18 @@ export function QuoteWizard() {
 
   async function submit(formData: FormData) {
     setLoading(true); setError(undefined); setResult(undefined);
+    captureGrowthEvent("quote_submit");
     const payload = Object.fromEntries(formData.entries());
     try {
       const response = await fetch("/api/quotes", { method: "POST", headers: { "content-type": "application/json", "idempotency-key": `quote-${crypto.randomUUID()}` }, body: JSON.stringify(payload) });
       const data = await response.json() as QuoteResult & { error?: { message?: string } };
       if (!response.ok) throw new Error(data.error?.message ?? "We could not prepare this quote.");
       setResult(data);
-    } catch (caught) { setError(caught instanceof Error ? caught.message : "We could not prepare this quote."); }
-    finally { setLoading(false); }
+      captureGrowthEvent("quote_result", { status: data.status, demo: Boolean(data.demo) });
+    } catch (caught) {
+      captureGrowthEvent("quote_error");
+      setError(caught instanceof Error ? caught.message : "We could not prepare this quote.");
+    } finally { setLoading(false); }
   }
 
   return <div className="quote-card" id="get-a-quote"><h2>Check your address</h2><p>See a firm pilot price only when eligible contractor supply is available.</p>
@@ -49,22 +61,22 @@ export function QuoteWizard() {
       <div className="field"><label htmlFor="accessType">Access</label><select id="accessType" name="accessType" defaultValue="ATTENDED"><option value="ATTENDED">I&apos;ll be present</option><option value="UNATTENDED">Unattended access</option></select></div>
       <div className="field field-full"><label htmlFor="serviceNotes">Property or access notes <span style={{ fontWeight: 500 }}>(optional)</span></label><textarea id="serviceNotes" name="serviceNotes" maxLength={2000} placeholder="Gate, lid location, driveway, or other useful details" /></div>
       {error && <div className="form-error field-full" role="alert">{error}</div>}
-      <button className="button button-primary field-full" type="submit" disabled={loading}>{loading ? <><LoaderCircle size={18} className="animate-spin" /> Checking coverage and supply…</> : <>See my price <ArrowRight size={18} /></>}</button>
+      <button className="button button-primary field-full" type="submit" disabled={loading}>{loading ? <><LoaderCircle size={18} className="animate-spin" /> Checking coverage and supply...</> : <>See my price <ArrowRight size={18} /></>}</button>
       <div className="fine-print field-full">Submitting does not guarantee an appointment. Drainly verifies coverage, current contractor eligibility, capacity, and marketplace economics on the server.</div>
     </form>}
     {result?.status === "PRICED" && <div className="quote-result" aria-live="polite">
       <div className="eyebrow"><CheckCircle2 size={16} /> {result.demo ? "Demo quote" : "Firm pilot quote"}</div>
-      <div>
-        <div className="price">{formatUsd(result.customerTotalCents ?? 0)}</div>
-        <div className="list-sub">{result.demo ? "Simulated total • no real card or contractor is involved" : "Customer total • card saved now, captured after completed service"}</div>
-      </div>
+      <div><div className="price">{formatUsd(result.customerTotalCents ?? 0)}</div><div className="list-sub">{result.demo ? "Simulated total • no real card or contractor is involved" : "Customer total • card saved now, captured after completed service"}</div></div>
       <div><strong>{result.address?.countyName}</strong><div className="list-sub">{result.address?.normalizedAddress}</div></div>
-      <div className="fine-print">{result.demo
-        ? "Demo mode uses simulated pricing and contractor availability. This is not a live quote, real contractor match, or service commitment."
-        : <>Based on {result.viableCandidateCount ?? 1} currently viable contractor candidate{(result.viableCandidateCount ?? 1) === 1 ? "" : "s"}. Eligibility and capacity are checked again at booking and acceptance.</>}</div>
-      <Link className="button button-primary" href={`/book?quote=${result.quoteId}`}>{result.demo ? "Continue demo flow" : "Continue securely"} <ArrowRight size={18} /></Link>
+      <div className="fine-print">{result.demo ? "Demo mode uses simulated pricing and contractor availability. This is not a live quote, real contractor match, or service commitment." : <>Based on {result.viableCandidateCount ?? 1} currently viable contractor candidate{(result.viableCandidateCount ?? 1) === 1 ? "" : "s"}. Eligibility and capacity are checked again at booking and acceptance.</>}</div>
+      <Link className="button button-primary" href={`/book?quote=${result.quoteId}`} onClick={() => captureGrowthEvent("quote_continue", { demo: Boolean(result.demo) })}>{result.demo ? "Continue demo flow" : "Continue securely"} <ArrowRight size={18} /></Link>
       <button className="button button-ghost" type="button" onClick={() => setResult(undefined)}>Change details</button>
     </div>}
-    {result && result.status !== "PRICED" && <div className="quote-result" aria-live="polite"><strong>{result.status === "UNSUPPORTED" ? "We don’t serve this address yet" : result.status === "UNAVAILABLE" ? "No current contractor capacity for that date" : "This request needs a manual review"}</strong><p style={{ margin: 0, color: "var(--muted)" }}>{result.status === "REVIEW_REQUIRED" ? "We won’t invent a firm price when tank details or marketplace economics are uncertain. Leave your details and our pilot team can review it." : "Try another supported date or contact the pilot team for help."}</p><button className="button button-secondary" type="button" onClick={() => setResult(undefined)}>Try different details</button></div>}
+    {result && result.status !== "PRICED" && <div className="quote-result" aria-live="polite">
+      <strong>{result.status === "UNSUPPORTED" ? "We don’t serve this address yet" : result.status === "UNAVAILABLE" ? "No current contractor capacity for that date" : "This request needs a manual review"}</strong>
+      <p style={{ margin: 0, color: "var(--muted)" }}>{result.status === "REVIEW_REQUIRED" ? "We won’t invent a firm price when tank details or marketplace economics are uncertain. Leave your details and our pilot team can review it." : "Try another supported date or ask for relevant pilot availability updates."}</p>
+      {(result.status === "UNSUPPORTED" || result.status === "UNAVAILABLE") && <GrowthLeadForm leadType="CUSTOMER_WAITLIST" source={result.status === "UNSUPPORTED" ? "HOME_UNSUPPORTED" : "HOME_UNAVAILABLE"} countyCode={countyCode(result.address?.countyName)} title="Want an availability update?" />}
+      <button className="button button-secondary" type="button" onClick={() => setResult(undefined)}>Try different details</button>
+    </div>}
   </div>;
 }

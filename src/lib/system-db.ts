@@ -41,6 +41,13 @@ export function getPaymentSystemDb(): Sql | null {
   return getSharedSystemDb(connectionString);
 }
 
+export function getGrowthSystemDb(): Sql | null {
+  const env = getServerEnv();
+  const connectionString = env.DRAINLY_SYSTEM_DATABASE_URL;
+  if (!connectionString) return null;
+  return getSharedSystemDb(connectionString);
+}
+
 export async function closeSystemDb(): Promise<void> {
   if (sql) await sql.end({ timeout: 5 });
   sql = null;

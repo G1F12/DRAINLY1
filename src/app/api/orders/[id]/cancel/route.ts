@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { getServerEnv } from "@/lib/env";
 import { apiError, getIdempotencyKey, parseJson, requireSameOrigin } from "@/lib/http";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { scheduleNotificationDrain } from "@/modules/notifications/dispatch";
@@ -13,6 +14,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   try {
     const body = await parseJson(request, schema);
     const { id } = await params;
+    const env = getServerEnv();
+    if (env.PROVIDER_MODE === "fake" && env.AUTH_PROVIDER_MODE === "real") {
+      return apiError("PROVIDER_UNAVAILABLE", "Controlled customer pilot actions are not enabled", 503);
+    }
     const client = await createSupabaseServerClient();
     if (!client) return Response.json({ orderId: id, status: "CANCELLED", demo: true });
     const { data, error } = await client.rpc("cancel_order", { p_order_id: id, p_reason: body.reason, p_idempotency_key: key });

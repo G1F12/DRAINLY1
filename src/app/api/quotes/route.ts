@@ -1,5 +1,6 @@
 import { TZDate } from "@date-fns/tz";
 import { createHash } from "node:crypto";
+import { cookies } from "next/headers";
 import { z } from "zod";
 
 import { apiError, clientAddress, getIdempotencyKey, hashRateLimitKey, parseJson, requireSameOrigin } from "@/lib/http";
@@ -75,7 +76,17 @@ export async function POST(request: Request) {
         accessInstructions: body.accessType === "UNATTENDED" ? body.serviceNotes ?? "" : "Customer will be present",
         })}::jsonb, ${idempotencyKey}, ${body.serviceNotes ?? null}) as quote
     `;
-    return Response.json({ ...(rows[0]?.quote ?? {}), address });
+    const quote = rows[0]?.quote ?? {};
+    const quoteId = typeof quote.quoteId === "string" ? quote.quoteId : typeof quote.id === "string" ? quote.id : null;
+    const referralCode = (await cookies()).get("drainly_ref")?.value;
+    if (quoteId && referralCode) {
+      try {
+        await sql`select internal.attribute_referral_quote(${referralCode}, ${quoteId}::uuid)`;
+      } catch {
+        // Referral attribution must never block a real quote.
+      }
+    }
+    return Response.json({ ...quote, address });
   } catch (error) {
     if (error instanceof z.ZodError) return apiError("BAD_REQUEST", "Invalid quote request", 400, error.flatten());
     console.error("[api/quotes] quote creation failed", error);
