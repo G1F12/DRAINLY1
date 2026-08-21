@@ -104,3 +104,10 @@ The payment worker independently enforces the same infrastructure gate before AU
 `/api/pilot/readiness` exposes only non-secret readiness flags. It never returns the allowlist itself or Stripe credentials and always reports `liveChargesAllowed=false`.
 
 This is a sandbox-only control boundary. The current Stripe gateway still rejects live secret keys. Turning on live money movement requires a separate future implementation and review; changing `PILOT_MODE` alone cannot enable live Stripe charges.
+## Stage 5E Stripe Connect sandbox onboarding
+
+Contractor payout onboarding uses Stripe Connect in sandbox/test mode only. Drainly creates recipient-only connected accounts through the Accounts v2 API with Express Dashboard access, platform-owned fees/loss responsibility, and only the `stripe_balance.stripe_transfers` capability requested. Direct card-payment capabilities are intentionally not requested for contractors because customer charges belong to the marketplace payment flow.
+
+The contractor is sent to a single-use Stripe-hosted Account Link for the `recipient` configuration. Stripe collects identity, verification, and bank information; Drainly stores only the connected account ID and a safe transfer-capability status. Account binding and status persistence are available only through `drainly_system` routines and require an active OWNER membership for the authenticated contractor company.
+
+A connected contractor is marked sandbox-ready only when Stripe reports the recipient transfer capability as `active`. This does not yet change legacy contractor approval/payment eligibility and it never enables live payouts. The transactional pilot gate remains closed independently until a later stage explicitly reconciles recipient readiness with order eligibility and opens a named sandbox pilot.

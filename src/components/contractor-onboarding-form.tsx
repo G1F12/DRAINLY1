@@ -3,6 +3,8 @@
 import { CheckCircle2, LoaderCircle, Plus, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { ContractorConnectSandboxPanel } from "@/components/contractor-connect-sandbox-panel";
+
 type RegionKind = "ZIP" | "COUNTY";
 type TankTier = "GAL_750" | "GAL_1000" | "GAL_1250" | "GAL_1500";
 
@@ -255,7 +257,7 @@ export function ContractorOnboardingForm() {
   }
 
   if (loading) {
-    return <div className="panel"><LoaderCircle className="animate-spin" size={22} /> Loading contractor profileвЂ¦</div>;
+    return <div className="panel"><LoaderCircle className="animate-spin" size={22} /> Loading contractor profile...</div>;
   }
 
   return <form className="stack" onSubmit={submit}>
@@ -303,7 +305,7 @@ export function ContractorOnboardingForm() {
     </section>
 
     <section className="panel">
-      <div className="panel-header"><div><h2>Your pumping prices</h2><p className="fine-print">These are contractor-set prices by tank size. вЂњEarliest availableвЂќ uses your scheduled price for now; regional price optimization comes later.</p></div>{priceBookVersion && <span className="fine-print">Price book v{priceBookVersion}</span>}</div>
+      <div className="panel-header"><div><h2>Your pumping prices</h2><p className="fine-print">These are contractor-set prices by tank size. &quot;Earliest available&quot; uses your scheduled price for now; regional price optimization comes later.</p></div>{priceBookVersion && <span className="fine-print">Price book v{priceBookVersion}</span>}</div>
       <div className="list">
         {TIERS.map(([tankTier, label]) => {
           const row = prices.find((price) => price.tankTier === tankTier)!;
@@ -316,6 +318,8 @@ export function ContractorOnboardingForm() {
       </div>
     </section>
 
+    <ContractorConnectSandboxPanel />
+
     <section className="panel">
       <div className="panel-header"><div><h2>Verification references</h2><p className="fine-print">Optional at this step. Anything entered here is marked submitted, not verified. Drainly operations must review it manually.</p></div></div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))", gap: 16 }}>
@@ -326,6 +330,6 @@ export function ContractorOnboardingForm() {
 
     {error && <div className="form-error" role="alert">{error}</div>}
     {saved && <div className="success-box"><CheckCircle2 size={17} style={{ display: "inline", marginRight: 7 }} />{saved}</div>}
-    <div><button className="button button-primary" disabled={saving}>{saving ? <><LoaderCircle size={18} className="animate-spin" /> SavingвЂ¦</> : "Save contractor profile"}</button></div>
+    <div><button className="button button-primary" disabled={saving}>{saving ? <><LoaderCircle size={18} className="animate-spin" /> Saving...</> : "Save contractor profile"}</button></div>
   </form>;
 }
