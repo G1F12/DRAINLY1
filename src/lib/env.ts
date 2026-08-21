@@ -61,6 +61,8 @@ export function getServerEnv(): ServerEnv {
   }
   if (cached.PAYMENT_PROVIDER_MODE === "stripe_test") {
     const required = [
+      "DRAINLY_SYSTEM_DATABASE_URL",
+      "RATE_LIMIT_HMAC_SECRET",
       "STRIPE_SECRET_KEY",
       "STRIPE_WEBHOOK_SECRET",
     ] as const;

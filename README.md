@@ -111,3 +111,10 @@ Contractor payout onboarding uses Stripe Connect in sandbox/test mode only. Drai
 The contractor is sent to a single-use Stripe-hosted Account Link for the `recipient` configuration. Stripe collects identity, verification, and bank information; Drainly stores only the connected account ID and a safe transfer-capability status. Account binding and status persistence are available only through `drainly_system` routines and require an active OWNER membership for the authenticated contractor company.
 
 A connected contractor is marked sandbox-ready only when Stripe reports the recipient transfer capability as `active`. This does not yet change legacy contractor approval/payment eligibility and it never enables live payouts. The transactional pilot gate remains closed independently until a later stage explicitly reconciles recipient readiness with order eligibility and opens a named sandbox pilot.
+## Stage 5 engineering closure
+
+Stage 5 is engineering-complete in a deliberately closed sandbox state. Stripe test SetupIntent/Payment Element, verified test webhooks, recipient-only Connect onboarding, fixed customer-price versus contractor-payout economics, destination authorization with manual capture, reassignment generations, refund/reversal handling, and authoritative payment readiness are implemented.
+
+Connect/payment persistence uses a payment-scoped trusted PostgreSQL path even while the core marketplace remains in fake mode. Runtime contractor payment eligibility uses recipient `stripe_transfers` capability rather than legacy connected-account charge/payout flags. Booking, offer acceptance, reassignment, authorization, and capture are protected by independent application and database pilot gates. Cancellation/refund remain available for safe unwind.
+
+Database pilot controls remain disabled by default. The application rejects live Stripe secret keys and reports `liveChargesAllowed=false`. Real contractors, verified credentials, service regions, regional pricing, marketplace settings, platform Stripe capabilities, legal/operational review, and explicit pilot activation remain separate go-live prerequisites.

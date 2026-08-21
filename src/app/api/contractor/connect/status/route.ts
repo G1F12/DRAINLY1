@@ -1,5 +1,5 @@
 import { apiError, hashRateLimitKey } from "@/lib/http";
-import { consumeRateLimit } from "@/lib/rate-limit";
+import { consumePaymentRateLimit } from "@/lib/rate-limit";
 import { getServerEnv } from "@/lib/env";
 import {
   authenticatedContractorConnectContext,
@@ -14,7 +14,7 @@ export async function GET() {
   try {
     const { user, context } = await authenticatedContractorConnectContext();
     if (!user) return apiError("UNAUTHENTICATED", "Sign in to manage contractor payout onboarding.", 401);
-    if (!(await consumeRateLimit(hashRateLimitKey(`contractor-connect-status:${user.id}`), 60, 3600))) {
+    if (!(await consumePaymentRateLimit(hashRateLimitKey(`contractor-connect-status:${user.id}`), 60, 3600))) {
       return apiError("RATE_LIMITED", "Too many payout status checks. Try again later.", 429);
     }
     if (!context?.exists) {

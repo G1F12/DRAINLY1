@@ -1,5 +1,5 @@
 import { apiError, getIdempotencyKey, hashRateLimitKey, requireSameOrigin } from "@/lib/http";
-import { consumeRateLimit } from "@/lib/rate-limit";
+import { consumePaymentRateLimit } from "@/lib/rate-limit";
 import { getServerEnv } from "@/lib/env";
 import {
   authenticatedContractorConnectContext,
@@ -19,7 +19,7 @@ export async function POST(request: Request) {
     const { user, context } = await authenticatedContractorConnectContext();
     if (!user?.email) return apiError("UNAUTHENTICATED", "Sign in with a verified email to continue.", 401);
     if (!context?.exists) return apiError("CONFLICT", "Save your contractor profile before payout onboarding.", 409);
-    if (!(await consumeRateLimit(hashRateLimitKey(`contractor-connect-onboarding:${user.id}`), 10, 3600))) {
+    if (!(await consumePaymentRateLimit(hashRateLimitKey(`contractor-connect-onboarding:${user.id}`), 10, 3600))) {
       return apiError("RATE_LIMITED", "Too many payout onboarding attempts. Try again later.", 429);
     }
 

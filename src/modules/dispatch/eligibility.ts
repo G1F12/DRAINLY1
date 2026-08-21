@@ -9,9 +9,7 @@ export interface ContractorEligibilityInput {
   maxJobs: number;
   urgentRequested: boolean;
   urgentEnabled: boolean;
-  stripeDetailsSubmitted: boolean;
-  stripeChargesEnabled: boolean;
-  stripePayoutsEnabled: boolean;
+  connectReady: boolean;
   payoutFunded: boolean;
   contributionGuardrailMet: boolean;
 }
@@ -25,7 +23,7 @@ export function contractorEligibility(input: ContractorEligibilityInput): { elig
   if (!input.worksRequestedDay || input.blackedOut) reasons.push("UNAVAILABLE");
   if (input.assignedJobs >= input.maxJobs) reasons.push("CAPACITY_EXHAUSTED");
   if (input.urgentRequested && !input.urgentEnabled) reasons.push("URGENT_NOT_SUPPORTED");
-  if (!input.stripeDetailsSubmitted || !input.stripeChargesEnabled || !input.stripePayoutsEnabled) reasons.push("CONNECT_NOT_READY");
+  if (!input.connectReady) reasons.push("CONNECT_NOT_READY");
   if (!input.payoutFunded) reasons.push("PAYOUT_NOT_FUNDED");
   if (!input.contributionGuardrailMet) reasons.push("CONTRIBUTION_GUARDRAIL_FAILED");
   return { eligible: reasons.length === 0, reasons };

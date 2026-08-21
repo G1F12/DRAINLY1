@@ -33,6 +33,14 @@ export function getNotificationSystemDb(): Sql | null {
   return getSharedSystemDb(connectionString);
 }
 
+export function getPaymentSystemDb(): Sql | null {
+  const env = getServerEnv();
+  if (env.PAYMENT_PROVIDER_MODE !== "stripe_test" && env.PROVIDER_MODE !== "real") return null;
+  const connectionString = env.DRAINLY_SYSTEM_DATABASE_URL;
+  if (!connectionString) return null;
+  return getSharedSystemDb(connectionString);
+}
+
 export async function closeSystemDb(): Promise<void> {
   if (sql) await sql.end({ timeout: 5 });
   sql = null;

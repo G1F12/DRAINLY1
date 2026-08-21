@@ -1,7 +1,7 @@
 import "server-only";
 
 import { getServerEnv } from "@/lib/env";
-import { getSystemDb } from "@/lib/system-db";
+import { getPaymentSystemDb } from "@/lib/system-db";
 import { getCurrentUser } from "@/lib/supabase/server";
 import {
   createSandboxRecipientAccount,
@@ -28,7 +28,7 @@ export async function authenticatedContractorConnectContext(): Promise<{
 }> {
   const user = await getCurrentUser();
   if (!user) return { user: null, context: null };
-  const sql = getSystemDb();
+  const sql = getPaymentSystemDb();
   if (!sql) throw new Error("SYSTEM_DATABASE_UNAVAILABLE");
   const rows = await sql<{ context: ContractorConnectContext }[]>`
     select internal.get_contractor_connect_context(${user.id}::uuid) as context
@@ -40,7 +40,7 @@ export async function syncContractorConnectStatus(input: {
   authUserId: string;
   accountId: string;
 }) {
-  const sql = getSystemDb();
+  const sql = getPaymentSystemDb();
   if (!sql) throw new Error("SYSTEM_DATABASE_UNAVAILABLE");
   const status = await retrieveSandboxRecipientAccount(input.accountId);
   await sql`
@@ -74,7 +74,7 @@ export async function ensureContractorSandboxAccount(input: {
     idempotencyKey: `connect-account:${input.idempotencyKey}`,
   });
 
-  const sql = getSystemDb();
+  const sql = getPaymentSystemDb();
   if (!sql) throw new Error("SYSTEM_DATABASE_UNAVAILABLE");
   await sql`
     select internal.bind_contractor_connect_account(

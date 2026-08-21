@@ -15,7 +15,7 @@ interface OutboxContext { outboxId: string; topic: string; orderId: string; publ
 interface PaymentContext extends CandidateEconomics {
   paymentGenerationId: string; orderId: string; assignmentId: string; isCurrent: boolean; status: string;
   connectedAccountId: string; stripeCustomerId: string; paymentMethodId: string; providerPaymentIntentId?: string;
-  shouldRun?: boolean;
+  contractorConnectReady?: boolean; shouldRun?: boolean;
 }
 
 export async function POST(request: Request) {
@@ -48,6 +48,9 @@ export async function POST(request: Request) {
           await sql`select internal.complete_work(${item.id}::uuid, ${workerId}, ${true}, ${null})`;
           results.push({ id: item.id, succeeded: true });
           continue;
+        }
+        if (["AUTHORIZE_PAYMENT", "CAPTURE_PAYMENT"].includes(item.taskType) && context.contractorConnectReady !== true) {
+          throw new Error("CONTRACTOR_CONNECT_NOT_READY");
         }
         if (["CANCEL_AUTHORIZATION", "CANCEL_ORDER_AUTHORIZATION"].includes(item.taskType)
           && (!context.isCurrent || !["CANCELLATION_PENDING", "CANCELLED"].includes(context.status))) {
