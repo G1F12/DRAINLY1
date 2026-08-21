@@ -20,7 +20,9 @@
     "db:types": "supabase gen types typescript --local --schema api,domain > src/lib/database.types.ts",
     "db:types:check": "node scripts/check-db-types.mjs",
     "scan:secrets": "node scripts/secret-scan.mjs",
+    "security:audit": "pnpm audit --prod --audit-level high",
     "verify": "pnpm typecheck && pnpm lint && pnpm test:unit && pnpm build && pnpm scan:secrets",
+    "verify:security": "pnpm verify && pnpm security:audit",
     "verify:full": "pnpm verify && pnpm test:db && pnpm db:types:check && pnpm test:integration && pnpm test:e2e"
   },
   "dependencies": {

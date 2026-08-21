@@ -16,9 +16,14 @@ function consumeMemoryRateLimit(bucketKey: string, limit: number, windowSeconds:
 }
 
 export async function consumeRateLimit(bucketKey: string, limit: number, windowSeconds: number): Promise<boolean> {
-  const sql = getSystemDb();
+  // Use the trusted DB whenever it is configured, even while the core
+  // marketplace switch is intentionally closed. This avoids serverless
+  // per-instance memory buckets becoming the production auth/API rate limit.
+  const sql = getSystemDb() ?? getGrowthSystemDb();
   if (sql) {
-    const rows = await sql<{ allowed: boolean }[]>`select internal.consume_rate_limit(${bucketKey}, ${limit}, ${windowSeconds}) as allowed`;
+    const rows = await sql<{ allowed: boolean }[]>`
+      select internal.consume_rate_limit(${bucketKey}, ${limit}, ${windowSeconds}) as allowed
+    `;
     return rows[0]?.allowed ?? false;
   }
   return consumeMemoryRateLimit(bucketKey, limit, windowSeconds);
@@ -27,7 +32,9 @@ export async function consumeRateLimit(bucketKey: string, limit: number, windowS
 export async function consumePaymentRateLimit(bucketKey: string, limit: number, windowSeconds: number): Promise<boolean> {
   const sql = getPaymentSystemDb();
   if (sql) {
-    const rows = await sql<{ allowed: boolean }[]>`select internal.consume_rate_limit(${bucketKey}, ${limit}, ${windowSeconds}) as allowed`;
+    const rows = await sql<{ allowed: boolean }[]>`
+      select internal.consume_rate_limit(${bucketKey}, ${limit}, ${windowSeconds}) as allowed
+    `;
     return rows[0]?.allowed ?? false;
   }
   return consumeMemoryRateLimit(bucketKey, limit, windowSeconds);
@@ -36,7 +43,9 @@ export async function consumePaymentRateLimit(bucketKey: string, limit: number, 
 export async function consumeGrowthRateLimit(bucketKey: string, limit: number, windowSeconds: number): Promise<boolean> {
   const sql = getGrowthSystemDb();
   if (sql) {
-    const rows = await sql<{ allowed: boolean }[]>`select internal.consume_rate_limit(${bucketKey}, ${limit}, ${windowSeconds}) as allowed`;
+    const rows = await sql<{ allowed: boolean }[]>`
+      select internal.consume_rate_limit(${bucketKey}, ${limit}, ${windowSeconds}) as allowed
+    `;
     return rows[0]?.allowed ?? false;
   }
   return consumeMemoryRateLimit(bucketKey, limit, windowSeconds);

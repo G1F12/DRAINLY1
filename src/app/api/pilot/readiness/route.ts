@@ -1,6 +1,6 @@
+import { getAdminContext } from "@/lib/admin-auth";
 import { getSandboxPilotGate } from "@/lib/pilot-gate";
 import { getPaymentSystemDb } from "@/lib/system-db";
-import { getCurrentUser } from "@/lib/supabase/server";
 
 type DatabasePilotReadiness = {
   bookingExecutionEnabled?: boolean;
@@ -20,14 +20,16 @@ type DatabasePilotReadiness = {
 };
 
 export async function GET() {
-  const user = await getCurrentUser();
-  const gate = getSandboxPilotGate(user?.email);
+  const admin = await getAdminContext();
+  const gate = getSandboxPilotGate(admin.user?.email);
   let database: DatabasePilotReadiness | null = null;
 
   const sql = getPaymentSystemDb();
   if (sql) {
     try {
-      const rows = await sql<{ readiness: DatabasePilotReadiness }[]>`select api.pilot_readiness() as readiness`;
+      const rows = await sql<{ readiness: DatabasePilotReadiness }[]>`
+        select api.pilot_readiness() as readiness
+      `;
       database = rows[0]?.readiness ?? null;
     } catch {
       database = null;
@@ -39,9 +41,16 @@ export async function GET() {
     && database?.allowedPaymentMode === "STRIPE_TEST"
     && database?.readyForTestPayments === true;
 
+  if (!admin.isAdmin) {
+    return Response.json({
+      controlledPilotConfigured: gate.infrastructureReady && databaseExecutionOpen,
+      liveChargesAllowed: false,
+    }, { headers: { "cache-control": "no-store" } });
+  }
+
   return Response.json({
     pilotMode: gate.pilotMode,
-    signedIn: Boolean(user),
+    signedIn: Boolean(admin.user),
     coreMarketplaceReal: gate.coreMarketplaceReal,
     authReal: gate.authReal,
     stripeTestPayments: gate.stripeTestPayments,

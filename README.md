@@ -128,3 +128,14 @@ Operational contractor views are explicitly scoped by authenticated contractor-c
 Stage 6 is implemented as a single growth-engineering package: privacy-safe quote/CTA measurement, local Johnston/Harnett SEO pages, consented customer/contractor lead capture, referral attribution without device fingerprinting, optional annual customer check-ins through the existing notification pipeline, an admin aggregate growth scorecard, and an audited experiment registry.
 
 This package also syncs the Stage 5.1 production-only security-invoker grants back into repository migrations. Growth features do not activate the core marketplace, controlled pilot, contractor approval, database booking/payment execution, or live Stripe money movement.
+
+## Pre-launch security hardening
+
+The pre-launch hardening pass closes tenant-scoping mistakes in `order_events` and `quote_candidates`,
+makes `admin_order_overview` explicitly admin-only, prevents production fake-success fallbacks on
+sensitive customer/admin/proof paths, hardens post-auth redirects, makes generic auth/API rate limits
+persistent across serverless instances, adds OTP and Stripe SetupIntent abuse limits, and binds proof
+finalization to the authenticated assigned contractor.
+
+The marketplace preview is moved behind the Next.js server boundary so direct public RPC execute can
+be revoked after the hardened deployment is live. Live Stripe money movement remains disabled.

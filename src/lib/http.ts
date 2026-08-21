@@ -39,17 +39,10 @@ function allowedRequestOrigins(request: Request): Set<string> {
   // Canonical application URL.
   addAllowedOrigin(origins, getServerEnv().APP_BASE_URL);
 
-  // Also trust the actual Vercel/custom-domain ingress host for this request.
-  // This prevents legitimate custom-domain requests from being rejected when
-  // APP_BASE_URL still points at another configured alias.
-  const forwardedHost = request.headers.get("x-forwarded-host") ?? request.headers.get("host");
-  const forwardedProto = request.headers.get("x-forwarded-proto") ?? (process.env.NODE_ENV === "production" ? "https" : "http");
-  if (forwardedHost && (forwardedProto === "http" || forwardedProto === "https")) {
-    addAllowedOrigin(origins, `${forwardedProto}://${forwardedHost}`);
-  }
-
-  // Next/Vercel normally preserves the external request origin here.
+  // Trust the URL already normalized by the framework/runtime. Do not trust
+  // client-supplied forwarded-host/proto headers for CSRF origin decisions.
   addAllowedOrigin(origins, request.url);
+
   return origins;
 }
 
