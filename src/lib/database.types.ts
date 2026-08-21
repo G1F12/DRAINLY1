@@ -195,6 +195,22 @@ export type Database = {
         }
         Returns: Json
       }
+      contractor_onboarding_get: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
+      contractor_onboarding_save: {
+        Args: {
+          p_availability: Json
+          p_company: Json
+          p_idempotency_key?: string
+          p_insurance_reference?: string
+          p_license_reference?: string
+          p_prices: Json
+          p_regions: Json
+        }
+        Returns: Json
+      }
       create_booking: {
         Args: {
           p_idempotency_key: string

@@ -64,3 +64,9 @@ PostHog and Sentry are server/client-configuration ready, with PII-safe logging 
 ## Data access
 
 PostgREST exposes only `api`. `domain` and `internal` are private schemas. Authenticated clients can read security-invoker API views and invoke allowlisted commands; all protected writes occur through hardened `SECURITY DEFINER` routines. Database tests verify the routine succeeds and the same caller cannot mutate the underlying table directly.
+
+## Stage 3 contractor supply boundary
+
+Authenticated contractor onboarding is intentionally separate from the core marketplace provider switch. With real Supabase auth enabled, a signed-in contractor may create or update a real contractor company profile, service areas, weekly capacity, contractor-set tank-size pricing, and self-submitted verification references through auth-scoped RPCs while `PROVIDER_MODE=fake` continues to block live booking, dispatch, geocoding, and Stripe paths.
+
+New contractor companies remain `PENDING`. Self-submitted license/permit and insurance references remain `SUBMITTED`, not verified. This stage does not create Stripe connected accounts, enable payouts, approve contractors, or make them eligible for live dispatch.

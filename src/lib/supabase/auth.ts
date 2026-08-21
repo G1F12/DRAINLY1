@@ -11,7 +11,7 @@ function isRealAuthEnabled() {
   return env.AUTH_PROVIDER_MODE === "real" || env.PROVIDER_MODE === "real";
 }
 
-async function createSupabaseAuthClient() {
+export async function createSupabaseAuthClient() {
   if (!isRealAuthEnabled() || !isSupabaseConfigured()) return null;
   const env = getServerEnv();
   const cookieStore = await cookies();
