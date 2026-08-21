@@ -70,3 +70,13 @@ PostgREST exposes only `api`. `domain` and `internal` are private schemas. Authe
 Authenticated contractor onboarding is intentionally separate from the core marketplace provider switch. With real Supabase auth enabled, a signed-in contractor may create or update a real contractor company profile, service areas, weekly capacity, contractor-set tank-size pricing, and self-submitted verification references through auth-scoped RPCs while `PROVIDER_MODE=fake` continues to block live booking, dispatch, geocoding, and Stripe paths.
 
 New contractor companies remain `PENDING`. Self-submitted license/permit and insurance references remain `SUBMITTED`, not verified. This stage does not create Stripe connected accounts, enable payouts, approve contractors, or make them eligible for live dispatch.
+
+## Stage 4 marketplace matching boundary
+
+Stage 4 adds a real, read-only marketplace matching engine on top of the Stage 3 contractor registry while core booking/payment providers remain isolated. Candidate eligibility uses approved company status, service-area coverage, weekday availability, blackout dates, remaining daily capacity, an active contractor price book, and the requested tank/timing price.
+
+The customer-facing preview price is contractor-set: the lowest ranked eligible contractor price is the displayed subtotal/total for this preview boundary. Ranking is deterministic: contractor price first, then current-day utilization, then contractor priority, then stable ID. Planned and earliest jobs use one contractor confirmation target; urgent jobs prepare a broadcast wave of up to three candidates.
+
+Stripe readiness is reported separately and is not used to hide otherwise matchable supply at this stage. Stage 4 does not create orders, offers, assignments, payment generations, or Stripe activity. The existing live booking path remains behind `PROVIDER_MODE=real` and is intentionally not switched to this preview engine until the controlled payment/pilot stage.
+
+Authenticated header UX now replaces `Sign in` with `Dashboard` plus `Log out`. Pending contractor accounts route back to contractor onboarding; approved contractors route to the contractor dashboard; other signed-in users route to the customer dashboard.

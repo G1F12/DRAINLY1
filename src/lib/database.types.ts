@@ -195,6 +195,15 @@ export type Database = {
         }
         Returns: Json
       }
+      marketplace_match_preview: {
+        Args: {
+          p_region_key: string
+          p_requested_service_date: string
+          p_tank_tier: Database["domain"]["Enums"]["tank_tier"]
+          p_timing_kind: Database["domain"]["Enums"]["timing_kind"]
+        }
+        Returns: Json
+      }
       contractor_onboarding_get: {
         Args: Record<PropertyKey, never>
         Returns: Json
