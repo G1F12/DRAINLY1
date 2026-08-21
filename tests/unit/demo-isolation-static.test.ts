@@ -30,10 +30,18 @@ describe("demo provider isolation source invariants", () => {
     expect(notificationGateway).not.toContain('gateway = env.PROVIDER_MODE === "real"');
   });
 
-  it("ignores Stripe webhooks before parsing or persistence while core providers are fake", () => {
-    expect(stripeWebhook).toContain('if (getServerEnv().PROVIDER_MODE !== "real")');
-    expect(stripeWebhook.indexOf('if (getServerEnv().PROVIDER_MODE !== "real")')).toBeLessThan(stripeWebhook.indexOf("request.text()"));
-    expect(stripeWebhook.indexOf('if (getServerEnv().PROVIDER_MODE !== "real")')).toBeLessThan(stripeWebhook.indexOf("getSystemDb()"));
+  it("keeps Stripe webhooks isolated unless core real or explicit Stripe test mode is enabled", () => {
+    const disabledGuard = 'if (env.PROVIDER_MODE !== "real" && !stripeTestEnabled)';
+    const testOnlyPersistenceGuard = 'if (env.PROVIDER_MODE !== "real")';
+
+    expect(stripeWebhook).toContain('const stripeTestEnabled = env.PAYMENT_PROVIDER_MODE === "stripe_test";');
+    expect(stripeWebhook).toContain(disabledGuard);
+    expect(stripeWebhook.indexOf(disabledGuard)).toBeLessThan(stripeWebhook.indexOf("request.text()"));
+
+    expect(stripeWebhook).toContain("constructWebhook(payload, signature)");
+    expect(stripeWebhook).toContain("if (event.livemode)");
+    expect(stripeWebhook).toContain(testOnlyPersistenceGuard);
+    expect(stripeWebhook.indexOf(testOnlyPersistenceGuard)).toBeLessThan(stripeWebhook.indexOf("getSystemDb()"));
   });
 
   it("does not render customer write actions in demo mode", () => {

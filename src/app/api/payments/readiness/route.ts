@@ -6,18 +6,24 @@ export async function GET() {
     env.PAYMENT_PROVIDER_MODE === "stripe_test"
     && Boolean(env.STRIPE_SECRET_KEY)
     && Boolean(env.STRIPE_WEBHOOK_SECRET);
+  const stripeTestUiConfigured =
+    stripeTestConfigured
+    && Boolean(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY?.startsWith("pk_test_"));
 
   return Response.json(
     {
       paymentProviderMode: env.PAYMENT_PROVIDER_MODE,
       stripeTestConfigured,
+      stripeTestUiConfigured,
       coreMarketplaceReal: env.PROVIDER_MODE === "real",
       authReal: env.AUTH_PROVIDER_MODE === "real",
       livePilotEnabled: false,
       liveChargesAllowed: false,
-      nextGate: stripeTestConfigured
+      nextGate: stripeTestUiConfigured
         ? "TEST_PAYMENT_FLOW"
-        : "CONFIGURE_STRIPE_TEST_KEYS",
+        : stripeTestConfigured
+          ? "CONFIGURE_STRIPE_TEST_PUBLISHABLE_KEY"
+          : "CONFIGURE_STRIPE_TEST_KEYS",
     },
     { headers: { "cache-control": "no-store" } },
   );

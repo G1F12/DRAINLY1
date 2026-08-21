@@ -88,3 +88,10 @@ Payments are now independently switchable with `PAYMENT_PROVIDER_MODE`. The only
 This stage does not turn the core marketplace real and does not enable live charges. `PROVIDER_MODE=fake` may remain in place while authenticated test users exercise Stripe test SetupIntent flows. `/api/payments/readiness` exposes only non-secret readiness flags and always reports `livePilotEnabled=false` and `liveChargesAllowed=false` until a later explicit pilot gate is implemented and approved.
 
 A Stripe test SetupIntent requires a verified signed-in Drainly user. Booking creation is still gated by the existing core provider path, so enabling the test payment adapter alone cannot create production orders or activate live dispatch.
+## Stage 5 Stripe test flow
+
+With `PAYMENT_PROVIDER_MODE=stripe_test` and `PROVIDER_MODE=fake`, authenticated users can exercise a real Stripe test-mode SetupIntent and Payment Element without creating a Drainly order. The checkout explicitly labels the flow as test-only and stops after reusable test payment-method setup.
+
+The Stripe webhook endpoint also becomes active for test mode: it verifies the real Stripe signature and rejects any `livemode=true` event. While the core marketplace remains fake, verified test events are acknowledged but are not persisted into order/payment state.
+
+This boundary is intentionally non-transactional: no order, offer, assignment, PaymentIntent authorization, capture, refund, payout, or live charge is created. Moving beyond this boundary requires a separate explicit controlled-pilot gate.
