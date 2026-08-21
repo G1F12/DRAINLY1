@@ -80,3 +80,11 @@ The customer-facing preview price is contractor-set: the lowest ranked eligible 
 Stripe readiness is reported separately and is not used to hide otherwise matchable supply at this stage. Stage 4 does not create orders, offers, assignments, payment generations, or Stripe activity. The existing live booking path remains behind `PROVIDER_MODE=real` and is intentionally not switched to this preview engine until the controlled payment/pilot stage.
 
 Authenticated header UX now replaces `Sign in` with `Dashboard` plus `Log out`. Pending contractor accounts route back to contractor onboarding; approved contractors route to the contractor dashboard; other signed-in users route to the customer dashboard.
+
+## Stage 5 payment readiness boundary
+
+Payments are now independently switchable with `PAYMENT_PROVIDER_MODE`. The only real adapter accepted by the application is `stripe_test`; live Stripe secret keys remain rejected by both environment validation and the Stripe gateway constructor.
+
+This stage does not turn the core marketplace real and does not enable live charges. `PROVIDER_MODE=fake` may remain in place while authenticated test users exercise Stripe test SetupIntent flows. `/api/payments/readiness` exposes only non-secret readiness flags and always reports `livePilotEnabled=false` and `liveChargesAllowed=false` until a later explicit pilot gate is implemented and approved.
+
+A Stripe test SetupIntent requires a verified signed-in Drainly user. Booking creation is still gated by the existing core provider path, so enabling the test payment adapter alone cannot create production orders or activate live dispatch.

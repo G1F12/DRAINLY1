@@ -13,7 +13,8 @@ export async function POST(request: Request) {
   try {
     const body = await parseJson(request, schema);
     const user = await getCurrentUser();
-    if (!user && process.env.PROVIDER_MODE === "real") return apiError("UNAUTHENTICATED", "Verified customer sign-in is required", 401);
+    const realPayment = process.env.PAYMENT_PROVIDER_MODE === "stripe_test" || process.env.PROVIDER_MODE === "real";
+    if (!user && realPayment) return apiError("UNAUTHENTICATED", "Verified customer sign-in is required", 401);
     if (user && user.email?.toLowerCase() !== body.email.toLowerCase()) return apiError("FORBIDDEN", "Email does not match the authenticated customer", 403);
     const result = await getPaymentGateway().createSetupIntent({ email: body.email, idempotencyKey: key });
     return Response.json(result);

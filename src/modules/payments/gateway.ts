@@ -148,7 +148,8 @@ export class StripePaymentGateway implements PaymentGateway {
 let gateway: PaymentGateway | undefined;
 export function getPaymentGateway(): PaymentGateway {
   const env = getServerEnv();
-  gateway ??= env.PROVIDER_MODE === "real"
+  const useStripeTest = env.PAYMENT_PROVIDER_MODE === "stripe_test" || env.PROVIDER_MODE === "real";
+  gateway ??= useStripeTest
     ? new StripePaymentGateway(env.STRIPE_SECRET_KEY!, env.STRIPE_WEBHOOK_SECRET!)
     : new FakePaymentGateway();
   return gateway;
