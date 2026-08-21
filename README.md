@@ -95,3 +95,12 @@ With `PAYMENT_PROVIDER_MODE=stripe_test` and `PROVIDER_MODE=fake`, authenticated
 The Stripe webhook endpoint also becomes active for test mode: it verifies the real Stripe signature and rejects any `livemode=true` event. While the core marketplace remains fake, verified test events are acknowledged but are not persisted into order/payment state.
 
 This boundary is intentionally non-transactional: no order, offer, assignment, PaymentIntent authorization, capture, refund, payout, or live charge is created. Moving beyond this boundary requires a separate explicit controlled-pilot gate.
+## Stage 5 controlled sandbox pilot gate
+
+Transactional marketplace behavior now has a second explicit safety switch in addition to `PROVIDER_MODE`. `PILOT_MODE` defaults to `off`. A sandbox pilot booking can be created only when all of the following are true: core provider mode is real, Supabase auth is real, the Stripe adapter is `stripe_test`, `PILOT_MODE=sandbox`, and the verified customer email appears in `PILOT_ALLOWED_EMAILS`.
+
+The payment worker independently enforces the same infrastructure gate before AUTHORIZE and CAPTURE operations and does so before `internal.begin_authorization` can mutate payment-generation state. Cancellation and refund operations remain available so an operator can unwind an already-created sandbox authorization even after the pilot gate is closed.
+
+`/api/pilot/readiness` exposes only non-secret readiness flags. It never returns the allowlist itself or Stripe credentials and always reports `liveChargesAllowed=false`.
+
+This is a sandbox-only control boundary. The current Stripe gateway still rejects live secret keys. Turning on live money movement requires a separate future implementation and review; changing `PILOT_MODE` alone cannot enable live Stripe charges.

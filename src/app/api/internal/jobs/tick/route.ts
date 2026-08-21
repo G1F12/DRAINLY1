@@ -2,6 +2,7 @@ import { apiError, constantTimeSecretMatches, hashRateLimitKey } from "@/lib/htt
 import { log } from "@/lib/logger";
 import { getServerEnv } from "@/lib/env";
 import { getSystemDb } from "@/lib/system-db";
+import { assertSandboxPilotMoneyMovementAllowed } from "@/lib/pilot-gate";
 import { getPaymentGateway } from "@/modules/payments/gateway";
 import { getNotificationGateway } from "@/modules/notifications/gateway";
 import type { CandidateEconomics } from "@/modules/pricing/money";
@@ -30,6 +31,9 @@ export async function POST(request: Request) {
     let providerObjectId: string | undefined;
     try {
       if (["AUTHORIZE_PAYMENT", "CAPTURE_PAYMENT", "CANCEL_AUTHORIZATION", "CANCEL_ORDER_AUTHORIZATION"].includes(item.taskType)) {
+        if (item.taskType === "AUTHORIZE_PAYMENT") assertSandboxPilotMoneyMovementAllowed("AUTHORIZE");
+        if (item.taskType === "CAPTURE_PAYMENT") assertSandboxPilotMoneyMovementAllowed("CAPTURE");
+
         const rows = item.taskType === "AUTHORIZE_PAYMENT"
           ? await sql<{ context: PaymentContext }[]>`select internal.begin_authorization(${item.aggregateId}::uuid) as context`
           : await sql<{ context: PaymentContext }[]>`select internal.get_payment_operation_context(${item.aggregateId}::uuid) as context`;

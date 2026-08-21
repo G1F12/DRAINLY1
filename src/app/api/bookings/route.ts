@@ -3,6 +3,7 @@ import { z } from "zod";
 import { apiError, getIdempotencyKey, parseJson, requireSameOrigin } from "@/lib/http";
 import { createSupabaseServerClient, getCurrentUser } from "@/lib/supabase/server";
 import { getSystemDb } from "@/lib/system-db";
+import { getSandboxPilotGate } from "@/lib/pilot-gate";
 import { getPaymentGateway } from "@/modules/payments/gateway";
 import { scheduleNotificationDrain } from "@/modules/notifications/dispatch";
 
@@ -27,6 +28,16 @@ export async function POST(request: Request) {
       if (process.env.PROVIDER_MODE !== "real") return Response.json({ orderId: crypto.randomUUID(), publicRef: "DRN-DEMO-BOOK", status: "SEARCHING_CONTRACTOR", demo: true });
       return apiError("UNAUTHENTICATED", "Verified customer sign-in is required", 401);
     }
+    if (process.env.PROVIDER_MODE === "real") {
+      const pilotGate = getSandboxPilotGate(user.email);
+      if (!pilotGate.infrastructureReady) {
+        return apiError("PROVIDER_UNAVAILABLE", "Controlled sandbox pilot is not enabled", 503);
+      }
+      if (!pilotGate.callerAllowlisted) {
+        return apiError("FORBIDDEN", "This account is not allowlisted for the controlled sandbox pilot", 403);
+      }
+    }
+
     const verifiedSetup = await getPaymentGateway().verifySetupIntent(body.setupIntentId);
     if (verifiedSetup.customerId !== body.stripeCustomerId || verifiedSetup.paymentMethodId !== body.paymentMethodId) {
       return apiError("FORBIDDEN", "Payment setup does not match this booking", 403);

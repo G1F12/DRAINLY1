@@ -11,6 +11,8 @@ const serverEnvSchema = z.object({
   AUTH_PROVIDER_MODE: z.enum(["fake", "real"]).default("fake"),
   NOTIFICATION_PROVIDER_MODE: z.enum(["fake", "real"]).default("fake"),
   PAYMENT_PROVIDER_MODE: z.enum(["fake", "stripe_test"]).default("fake"),
+  PILOT_MODE: z.enum(["off", "sandbox"]).default("off"),
+  PILOT_ALLOWED_EMAILS: z.string().default(""),
   APP_BASE_URL: z.string().url().default("http://127.0.0.1:3000"),
   NEXT_PUBLIC_SUPABASE_URL: optionalUrl,
   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: z.string().optional(),
