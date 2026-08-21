@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { getServerEnv } from "@/lib/env";
 
 import { apiError, getIdempotencyKey, parseJson, requireSameOrigin } from "@/lib/http";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -13,8 +14,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   try {
     const body = await parseJson(request, schema);
     const { id } = await params;
-    const providerMode = (process.env.PROVIDER_MODE ?? "fake").trim().toLowerCase();
-    if (providerMode === "fake") return Response.json({ orderId: id, status: body.action === "MARK_EN_ROUTE" ? "EN_ROUTE" : body.action === "MARK_ARRIVED" ? "ARRIVED" : body.action === "COMPLETE" ? "SERVICE_COMPLETED" : body.action === "FAIL_ACCESS" ? "FAILED_ACCESS" : "FAILED_SERVICE", demo: true });
+    const env = getServerEnv();
+    const providerMode = env.PROVIDER_MODE;
+    if (providerMode === "fake") {
+      if (env.AUTH_PROVIDER_MODE === "real") return apiError("PROVIDER_UNAVAILABLE", "Controlled contractor pilot actions are not enabled", 503);
+      return Response.json({ orderId: id, status: body.action === "MARK_EN_ROUTE" ? "EN_ROUTE" : body.action === "MARK_ARRIVED" ? "ARRIVED" : body.action === "COMPLETE" ? "SERVICE_COMPLETED" : body.action === "FAIL_ACCESS" ? "FAILED_ACCESS" : "FAILED_SERVICE", demo: true });
+    }
     if (providerMode !== "real") return apiError("INTERNAL_ERROR", "Service provider mode is misconfigured", 500);
     const client = await createSupabaseServerClient();
     if (!client) return apiError("PROVIDER_UNAVAILABLE", "Contractor service is not configured", 503);
