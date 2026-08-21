@@ -68,7 +68,7 @@ export function HeaderAuthActions() {
         cursor: signingOut ? "wait" : "pointer",
       }}
     >
-      {signingOut ? "Signing outвЂ¦" : "Log out"}
+      {signingOut ? "Signing out..." : "Log out"}
     </button>
   </>;
 }
